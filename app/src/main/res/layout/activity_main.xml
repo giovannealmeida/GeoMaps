@@ -27,6 +27,8 @@
             android:id="@+id/tvEmpty"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="@android:color/black"
+            android:textColor="@android:color/white"
             android:text="Toque na tela para adicionar uma zona"
             android:visibility="gone"/>
 

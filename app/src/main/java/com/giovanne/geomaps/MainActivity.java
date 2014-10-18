@@ -1,28 +1,25 @@
 package com.giovanne.geomaps;
 
 import android.app.Dialog;
-import android.database.DataSetObserver;
 import android.graphics.Color;
+import android.location.Address;
+import android.location.Geocoder;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Adapter;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.BaseAdapter;
 import android.widget.ImageButton;
-import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import com.giovanne.geomaps.adapters.AddressCustomAdapter;
 import com.giovanne.geomaps.adapters.MarkerCustomAdapter;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
@@ -33,17 +30,19 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class MainActivity extends FragmentActivity {
-    private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private ImageButton btHideList;
     private ListView lvList;
     private Map<Marker,Circle> zoneList;
     private ArrayList<Marker> markerList;
-    private MarkerCustomAdapter adapter;
+    private MarkerCustomAdapter markerAdapter;
+    private Map<Marker,String> addressList;
+    private AddressCustomAdapter addressAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,11 +77,14 @@ public class MainActivity extends FragmentActivity {
             zoneList = new HashMap<Marker, Circle>();
 
             markerList = new ArrayList<Marker>();
-            markerList.addAll(zoneList.keySet());
 
-            this.adapter = new MarkerCustomAdapter(markerList, this);
+            addressList = new HashMap<Marker, String>();
 
-            lvList.setAdapter(adapter);
+            this.markerAdapter = new MarkerCustomAdapter(markerList, this);
+            this.addressAdapter = new AddressCustomAdapter(new ArrayList<String>(addressList.values()), this);
+
+//            lvList.setAdapter(markerAdapter);
+            lvList.setAdapter(addressAdapter);
             lvList.setEmptyView(findViewById(R.id.tvEmpty));
 
             lvList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -150,7 +152,7 @@ public class MainActivity extends FragmentActivity {
 //            markersList.remove(marker.getId());
 //            list.clear();
 //            list.addAll(markersList.values());
-//            adapter.notifyDataSetChanged();
+//            markerAdapter.notifyDataSetChanged();
 //        } catch (Exception e){
 //            Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG);
 //            return false;
@@ -171,7 +173,7 @@ public class MainActivity extends FragmentActivity {
 //        markersList.put(m.getId(),"Marker "+m.getId()+" - "+String.valueOf(latLng.latitude)+", "+String.valueOf(latLng.longitude));
 //        list.clear();
 //        list.addAll(markersList.values());
-//        adapter.notifyDataSetChanged();
+//        markerAdapter.notifyDataSetChanged();
     }
 
     private void addZone(LatLng latLng){
@@ -187,9 +189,12 @@ public class MainActivity extends FragmentActivity {
                 .title("Marker"));
 
         zoneList.put(m,c);
-        markerList.clear();
-        markerList.addAll(zoneList.keySet());
-        adapter.notifyDataSetChanged();
+//        markerList.clear();
+//        markerList.addAll(zoneList.keySet());
+//        markerAdapter.notifyDataSetChanged();
+        addressList.put(m,getCompleteAddressString(m.getPosition()));
+        addressAdapter.setData(new ArrayList<String>(addressList.values()));
+        addressAdapter.notifyDataSetChanged();
     }
 
     private boolean removeZone(Marker marker) {
@@ -197,13 +202,43 @@ public class MainActivity extends FragmentActivity {
             marker.remove(); //Remove marcador
             zoneList.get(marker).remove(); //Remove círculo
             zoneList.remove(marker);
-            markerList.clear();
-            markerList.addAll(zoneList.keySet());
-            adapter.notifyDataSetChanged();
+//            markerList.clear();
+//            markerList.addAll(zoneList.keySet());
+//            markerAdapter.notifyDataSetChanged();
+            addressList.remove(marker);
+            addressAdapter.setData(new ArrayList<String>(addressList.values()));
+            addressAdapter.notifyDataSetChanged();
         } catch (Exception e){
             Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG);
             return false;
         }
         return true;
+    }
+
+    private String getCompleteAddressString(LatLng latLng) {
+        String strAdd = "";
+        double LATITUDE = latLng.latitude;
+        double LONGITUDE = latLng.longitude;
+
+        Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+        try {
+            List<Address> addresses = geocoder.getFromLocation(LATITUDE, LONGITUDE, 1);
+            if (addresses != null) {
+                Address returnedAddress = addresses.get(0);
+                StringBuilder strReturnedAddress = new StringBuilder("");
+
+                for (int i = 0; i < returnedAddress.getMaxAddressLineIndex(); i++) {
+                    strReturnedAddress.append(returnedAddress.getAddressLine(i)).append("\n");
+                }
+                strAdd = strReturnedAddress.toString();
+                Log.w("Getting loction address", "" + strReturnedAddress.toString());
+            } else {
+                Log.w("Getting loction address", "No Address returned!");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.w("Getting loction address", e.getMessage());
+        }
+        return strAdd;
     }
 }
